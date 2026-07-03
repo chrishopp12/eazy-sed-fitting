@@ -164,7 +164,8 @@ def build_eazy_params(config: FitConfig, paths: RunPaths) -> dict:
 # Fit execution
 # ------------------------------------
 
-def run_fit(config: FitConfig, phot, run_dir=None) -> FitResult:
+def run_fit(config: FitConfig, phot, run_dir=None, *,
+            grid_from: FitResult | None = None) -> FitResult:
     """Run the official eazy-py fit for one photometry set.
 
     Parameters
@@ -176,6 +177,12 @@ def run_fit(config: FitConfig, phot, run_dir=None) -> FitResult:
     run_dir : str or Path or None
         Run directory; None uses ``eazy_output/<config.name>/`` under the
         current directory. [default: None]
+    grid_from : FitResult or None
+        A same-session result whose template grid (bandpass integrals over
+        z x template x filter) is reused, skipping the expensive build.
+        Valid only when the band sequence, redshift grid, and template set
+        are identical -- e.g. band subsets of one catalog expressed as
+        missing values. Enforced, not assumed. [default: None]
 
     Returns
     -------
@@ -187,6 +194,10 @@ def run_fit(config: FitConfig, phot, run_dir=None) -> FitResult:
     run_dir = Path(run_dir) if run_dir else DEFAULT_OUTPUT_ROOT / config.name
     paths = build_run_dir(config, phot, run_dir)
     params = build_eazy_params(config, paths)
+    tempfilt = None
+    if grid_from is not None:
+        tempfilt = _reusable_tempfilt(config, grid_from,
+                                      [str(b) for b in band_metadata(phot)["band"]])
 
     # eazy imports matplotlib.pyplot inside its fit/plot paths; force a
     # non-interactive backend before the first eazy import.
@@ -201,7 +212,8 @@ def run_fit(config: FitConfig, phot, run_dir=None) -> FitResult:
                    load_prior=config.prior,
                    load_products=False,
                    n_proc=config.n_proc,
-                   compute_tef_lnp=config.tef_lnp)
+                   compute_tef_lnp=config.tef_lnp,
+                   tempfilt=tempfilt)
 
     ids = object_ids(phot)
     if photz.NOBJ != len(ids) or photz.NFILT != len(set(phot["band"])):
@@ -285,6 +297,28 @@ def run_fit(config: FitConfig, phot, run_dir=None) -> FitResult:
 
     save_outputs(result)
     return result
+
+
+def _reusable_tempfilt(config: FitConfig, grid_from: FitResult, bands: list[str]):
+    """Validate and return a previous run's template grid for reuse.
+
+    The grid holds the bandpass integral of every template at every grid
+    redshift through every filter, so it transfers only between runs whose
+    band sequence, redshift grid, and template set all match (fits that
+    differ purely in which bands are marked missing).
+    """
+    if grid_from.photz is None:
+        raise ValueError("grid_from carries no live PhotoZ handle (rehydrated run?)")
+    same_setup = all(
+        getattr(config, key) == getattr(grid_from.config, key)
+        for key in ("z_min", "z_max", "z_step", "z_step_type",
+                    "templates", "template_pattern"))
+    if not same_setup or list(grid_from.bands) != list(bands):
+        raise ValueError(
+            "grid_from is not reusable: band sequence, redshift grid, or "
+            "template settings differ from the previous run")
+    print(f"reusing template grid from run {grid_from.config.name!r}")
+    return grid_from.photz.tempfilt
 
 
 def _warn_grid_edges(ids, zgrid, z_ml, z_chi2) -> None:
