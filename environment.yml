@@ -1,0 +1,17 @@
+# Conda environment for eazy_sed_fitting.
+# Documents the `eazy` env this package runs in:
+#   conda env create -f environment.yml
+#   conda run -n eazy python -m eazy_sed_fitting fit ...
+# eazy-py brings astro-sedpy, dust_extinction, h5py, peakutils, and tqdm.
+name: eazy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy=2.4
+  - scipy=1.17
+  - astropy=8.0
+  - matplotlib=3.11
+  - pip
+  - pip:
+      - eazy-py==0.8.6

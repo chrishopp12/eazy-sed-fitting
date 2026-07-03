@@ -1,0 +1,122 @@
+# eazy_sed_fitting
+
+Template-fitting photometric redshifts and SEDs with the official
+[eazy-py](https://github.com/gbrammer/eazy-py) pipeline (Brammer, van Dokkum,
+& Coppi 2008), wrapped behind one config and one photometry CSV. The package
+generates every eazy input (catalog, translate file, FILTER.RES, template
+list) into a self-contained run directory, executes the official fit, and
+writes compact summary products. It is the template-fitting counterpart to
+`prospector_sed_fitting` and consumes the same photometry CSV schema.
+
+## Environment
+
+Runs in the `eazy` conda env (`environment.yml`): python 3.11, eazy-py 0.8.6,
+numpy, scipy, astropy, matplotlib. No sedpy and no pandas at runtime; filter
+curves are vendored (see below). Invoke from the directory that contains the
+package (or put it on `PYTHONPATH`):
+
+```
+conda run -n eazy python -m eazy_sed_fitting fit ...
+```
+
+## Photometry input
+
+CSV with one row per band (or per object x band with an `id` column):
+
+| column | meaning |
+|---|---|
+| `band` | e.g. `CFHT_u`, `JPLUS_J0410`, `Legacy_g`, `WISE_W1`, `SPHEREx_000` |
+| `flux_uJy` | flux density in microJansky |
+| `flux_err_uJy` | 1-sigma error in microJansky |
+| `wave_um`, `bandwidth_um` | SPHEREx rows only: channel center and full width |
+
+Broadband names resolve against the vendored curve set
+(`python -m eazy_sed_fitting filters` lists them; `config.extra_filters` adds
+your own). SPHEREx channels become per-object rectangular tophat filters.
+There is no required band list, but each object must clear
+`min_valid_bands` (default 5) after the data policy — eazy-py itself ignores
+`N_MIN_COLORS` and silently skips under-constrained objects, so the wrapper
+is the real gate.
+
+## Quick start
+
+```bash
+python -m eazy_sed_fitting fit --phot-csv sed_input_master.csv \
+    --templates ~/templates/brown14 \
+    --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \
+    --name bcgA --output-dir runs/bcgA --plots --z-ref 0.106
+```
+
+```python
+from eazy_sed_fitting import FitConfig, run_fit, summarize
+
+cfg = FitConfig(name="bcgA", templates="~/templates/brown14",
+                z_min=0.05, z_max=0.16, z_step=0.001, z_step_type="linear",
+                z_fixed=0.106)
+result = run_fit(cfg, "sed_input_master.csv", run_dir="runs/bcgA")
+print(summarize(result))
+```
+
+Key `FitConfig` fields (defaults in parentheses): `mode` (`"combo"`; `"single"`
+adds official per-template fits via `fit_single_templates`), `z_fixed` (None;
+also evaluates the best-fit SED at a chosen redshift through
+`fit_at_zbest`), `sys_err` (0.05 fractional error floor), `tef` (True;
+the classic `TEMPLATE_ERROR.eazy_v1.0` curve at `tef_scale`=1.0),
+`min_snr_broadband` (0 = off; marks broadband non-detections missing, never
+SPHEREx), `prior` (False). Serialize per-target configs with
+`cfg.to_json(path)` and load them with `--config`.
+
+Templates: pass an existing eazy `.param` file, or a directory of spectra
+(two-column ASCII wavelength/f_lambda, like the
+[Brown et al. 2014](https://doi.org/10.1088/0067-0049/212/2/18) atlas)
+matched by `template_pattern`.
+
+## Outputs (run directory)
+
+```
+config.json  catalog.csv  zphot.translate  FILTER.RES(.info)
+templates.param  template_error.dat  zphot.param.echo
+summary.csv  [singles.csv]  arrays.npz  sed_<id>.png  zscan_<id>.png
+```
+
+`summary.csv` reports three redshift estimators per object — do not mix them:
+
+- `z_ml`: eazy's headline photo-z, the maximum of ln P(z) = -chi2/2 + tef_lnp
+  (parabola-refined); -1 flags a failed/edge solution.
+- `z_chi2`: the raw grid argmin of chi2(z).
+- `z500` (with `z025`/`z160`/`z840`/`z975`): the P(z) median.
+
+`arrays.npz` carries the z grid, chi2(z), ln P(z), best-fit coefficients,
+model photometry, and the best-fit SED curves; `results.load_run` rehydrates
+a run for plotting without re-fitting (and without eazy installed).
+
+## Design notes and caveats
+
+- **`standard_output` is bypassed.** eazy's output writer hardcodes
+  rest-frame filter indices (UBVJ, absolute magnitudes) that index into this
+  package's run-local FILTER.RES incorrectly, and its stellar-population
+  columns are meaningless for shape-normalized template atlases. The package
+  writes `summary.csv`/`arrays.npz` instead.
+- **Template coefficients are not masses.** Atlas spectra (e.g. Brown+14)
+  carry arbitrary normalizations; only the redshift, chi2, and template
+  identities are physical here. Stellar-population parameters belong in a
+  forward-modeling fitter (Prospector).
+- **SSP caveat.** eazy-py 0.8.6 discards the age column of a templates file,
+  so SSP sets fit as plain template lists with no age-vs-universe cut.
+- **Fixed-redshift fits** always go through `fit_at_zbest(zbest=...)`;
+  `FIX_ZSPEC` stays off so a `z_spec` column can never silently hijack a
+  photo-z run. The fixed redshift must lie strictly inside the grid.
+- **Filter vendoring.** `data/filters/*.dat` are frozen sedpy curves
+  (provenance in each header); regenerate with
+  `conda run -n prospector_c3k python vendor_filters.py` when adding bands.
+- **Priors** are off by default and minimally supported (`prior_file` +
+  `prior_filter` = a catalog flux column name).
+- **macOS multiprocessing.** eazy parallelizes with multiprocessing, and
+  macOS uses the spawn start method: any script that calls `run_fit` at
+  import time hangs the worker pool. Keep the standard
+  `if __name__ == "__main__":` guard in driver scripts (or set
+  `n_proc=0` for a serial run).
+
+## License
+
+MIT.

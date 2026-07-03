@@ -1,0 +1,11 @@
+# Run outputs (regenerable)
+eazy_output/
+*.zout.fits
+*.data.fits
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
