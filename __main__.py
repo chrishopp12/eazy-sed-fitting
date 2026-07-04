@@ -25,13 +25,12 @@ Usage:
   python -m eazy_sed_fitting filters
 
 Examples:
-  Photo-z for one target against the Brown+2014 atlas on a linear grid:
-    python -m eazy_sed_fitting fit --phot-csv sed_input_master.csv \\
-        --templates ~/Desktop/Wittman_Research/templates/brown14 \\
+  Photo-z for one target with the packaged Brown+2014 atlas on a linear grid:
+    python -m eazy_sed_fitting fit --phot-csv sed_input.csv \\
         --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \\
-        --name bcgA --output-dir runs/bcgA --plots
+        --name target1 --output-dir runs/target1 --plots
   Re-draw the figures of a finished run with a reference redshift:
-    python -m eazy_sed_fitting plot runs/bcgA --z-ref 0.106
+    python -m eazy_sed_fitting plot runs/target1 --z-ref 0.106
 """
 
 from __future__ import annotations
@@ -97,7 +96,8 @@ def _add_fit_parser(subparsers) -> None:
                    help="grid step; fractional when --z-step-type log")
     p.add_argument("--z-step-type", choices=("linear", "log"), default=None)
     p.add_argument("--templates", default=None,
-                   help="eazy templates .param file or a directory of spectra")
+                   help="eazy templates .param file or a directory of spectra "
+                        "[default: packaged Brown+2014 atlas]")
     p.add_argument("--template-pattern", default=None,
                    help="glob for directory-mode spectra [default: *_spec.dat]")
     p.add_argument("--sys-err", type=float, default=None,

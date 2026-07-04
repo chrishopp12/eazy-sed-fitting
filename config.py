@@ -43,6 +43,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 PACKAGE_DATA_DIR = PACKAGE_DIR / "data"
 FILTER_DATA_DIR = PACKAGE_DATA_DIR / "filters"
 DEFAULT_TEF_FILE = PACKAGE_DATA_DIR / "TEMPLATE_ERROR.eazy_v1.0"
+DEFAULT_TEMPLATE_DIR = PACKAGE_DATA_DIR / "templates" / "brown14"
 
 SPHEREX_PREFIX = "SPHEREx_"
 
@@ -100,9 +101,11 @@ class FitConfig:
     z_step_type : str
         "log" (eazy default) or "linear". [default: "log"]
     templates : str
-        Required. Path to an eazy templates ``.param`` file (used as-is;
-        its internal paths must be absolute or eazy-resolvable), or to a
-        directory of spectra gathered with ``template_pattern``.
+        Path to an eazy templates ``.param`` file (used as-is; its
+        internal paths must be absolute or eazy-resolvable), or to a
+        directory of spectra gathered with ``template_pattern``. Empty
+        selects the packaged Brown et al. (2014) atlas
+        (``data/templates/brown14``). [default: ""]
     template_pattern : str
         Glob for directory-mode template spectra. [default: "*_spec.dat"]
     sys_err : float
@@ -204,10 +207,6 @@ class FitConfig:
             raise ValueError(f"need 0 < z_min < z_max, got ({self.z_min}, {self.z_max})")
         if self.z_step <= 0:
             raise ValueError(f"z_step must be positive, got {self.z_step}")
-        if not self.templates:
-            raise ValueError(
-                "config.templates is required: an eazy templates .param file, "
-                "or a directory of spectra matched by template_pattern")
         if self.z_fixed is not None and not (self.z_min < self.z_fixed < self.z_max):
             raise ValueError(
                 f"z_fixed={self.z_fixed} must lie strictly inside the grid "

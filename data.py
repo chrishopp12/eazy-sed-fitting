@@ -4,9 +4,8 @@ data.py
 Photometry Input and Data Policy
 ---------------------------------------------------------
 
-Reads the shared SED-input CSV (the same schema ``prospector_sed_fitting``
-consumes) and applies the wrapper-side data policy before anything reaches
-eazy-py:
+Reads the SED-input photometry CSV and applies the wrapper-side data
+policy before anything reaches eazy-py:
 
   - non-finite fluxes and non-positive errors become missing values
     (``MISSING_FLUX`` = -99, below eazy's NOT_OBS_THRESHOLD);

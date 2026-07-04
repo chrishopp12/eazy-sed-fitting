@@ -5,8 +5,8 @@ Template-fitting photometric redshifts and SEDs with the official
 & Coppi 2008), wrapped behind one config and one photometry CSV. The package
 generates every eazy input (catalog, translate file, FILTER.RES, template
 list) into a self-contained run directory, executes the official fit, and
-writes compact summary products. It is the template-fitting counterpart to
-`prospector_sed_fitting` and consumes the same photometry CSV schema.
+writes compact summary products. Filter curves and a default galaxy template
+atlas ship with the package, so a fit needs nothing beyond the CSV.
 
 ## Environment
 
@@ -41,19 +41,18 @@ is the real gate.
 ## Quick start
 
 ```bash
-python -m eazy_sed_fitting fit --phot-csv sed_input_master.csv \
-    --templates ~/templates/brown14 \
+python -m eazy_sed_fitting fit --phot-csv sed_input.csv \
     --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \
-    --name bcgA --output-dir runs/bcgA --plots --z-ref 0.106
+    --name target1 --output-dir runs/target1 --plots --z-ref 0.106
 ```
 
 ```python
 from eazy_sed_fitting import FitConfig, run_fit, summarize
 
-cfg = FitConfig(name="bcgA", templates="~/templates/brown14",
+cfg = FitConfig(name="target1",
                 z_min=0.05, z_max=0.16, z_step=0.001, z_step_type="linear",
                 z_fixed=0.106)
-result = run_fit(cfg, "sed_input_master.csv", run_dir="runs/bcgA")
+result = run_fit(cfg, "sed_input.csv", run_dir="runs/target1")
 print(summarize(result))
 ```
 
@@ -66,10 +65,12 @@ the classic `TEMPLATE_ERROR.eazy_v1.0` curve at `tef_scale`=1.0),
 SPHEREx), `prior` (False). Serialize per-target configs with
 `cfg.to_json(path)` and load them with `--config`.
 
-Templates: pass an existing eazy `.param` file, or a directory of spectra
-(two-column ASCII wavelength/f_lambda, like the
-[Brown et al. 2014](https://doi.org/10.1088/0067-0049/212/2/18) atlas)
-matched by `template_pattern`.
+Templates: the packaged default is the
+[Brown et al. (2014)](https://doi.org/10.1088/0067-0049/212/2/18) atlas of
+129 galaxy spectra, bundled under `data/templates/brown14/` (each file
+carries its original attribution header). To use an alternative set, pass
+`templates=` an existing eazy `.param` file, or a directory of spectra
+(two-column ASCII wavelength/f_lambda) matched by `template_pattern`.
 
 ## Outputs (run directory)
 
@@ -106,9 +107,11 @@ a run for plotting without re-fitting (and without eazy installed).
 - **Fixed-redshift fits** always go through `fit_at_zbest(zbest=...)`;
   `FIX_ZSPEC` stays off so a `z_spec` column can never silently hijack a
   photo-z run. The fixed redshift must lie strictly inside the grid.
-- **Filter vendoring.** `data/filters/*.dat` are frozen sedpy curves
-  (provenance in each header); regenerate with
-  `conda run -n prospector_c3k python vendor_filters.py` when adding bands.
+- **Filter vendoring.** `data/filters/*.dat` are frozen transmission curves
+  (provenance in each header), sourced from the sedpy registry with an
+  SVO Filter Profile Service fallback for bands stock sedpy lacks (the
+  J-PLUS set). Regenerate with `python vendor_filters.py` in any
+  environment with numpy (sedpy optional; network needed for SVO bands).
 - **Priors** are off by default and minimally supported (`prior_file` +
   `prior_filter` = a catalog flux column name).
 - **Percentiles are computed by this package**, not by

@@ -10,14 +10,15 @@ generates the catalog, translate file, FILTER.RES, and template list into
 a self-contained run directory, executes the official fit, and writes
 summary/array products (see ``results.py``).
 
-Quick start (from the directory containing this package):
+Quick start (from the directory containing this package; templates
+default to the packaged Brown et al. 2014 atlas):
 
     python -m eazy_sed_fitting fit --phot-csv sed_input.csv \\
-        --templates ~/templates/brown14 --z-min 0.05 --z-max 0.16 \\
-        --z-step 0.001 --z-step-type linear --output-dir runs/target
+        --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \\
+        --output-dir runs/target
 
     from eazy_sed_fitting import FitConfig, run_fit
-    cfg = FitConfig(name="target", templates="~/templates/brown14")
+    cfg = FitConfig(name="target")
     result = run_fit(cfg, "sed_input.csv", run_dir="runs/target")
 
 Requirements:

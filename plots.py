@@ -7,9 +7,8 @@ Diagnostic Figures for eazy_sed_fitting Runs
 Two figures per object, drawn from a ``FitResult`` (live or rehydrated
 with ``results.load_run`` -- no eazy import needed here):
 
-  - ``plot_sed``: the plot_map_sed layout shared with
-    ``prospector_sed_fitting`` -- a short chi-residual panel over a tall
-    SED panel (best-fit template spectrum, observed photometry colored by
+  - ``plot_sed``: a short chi-residual panel over a tall SED panel
+    (best-fit template spectrum, observed photometry colored by
     instrument, model photometry), log wavelength, f_nu in microJansky.
     Residuals use the photometric error (SYS_ERR included); the TEF
     variance inflation lives in the likelihood, not the error bars.
@@ -33,8 +32,7 @@ import matplotlib.ticker as mticker
 from .config import SPHEREX_PREFIX
 from .results import FitResult
 
-# Per-instrument marker colors (shared with prospector_sed_fitting's
-# plot_map_sed and sed_photoz's plot_sed_combo); SPHEREx de-emphasized.
+# Per-instrument marker colors; SPHEREx de-emphasized in gray.
 INSTRUMENT_COLOR = {
     "GALEX": "darkviolet", "SDSS": "seagreen", "Legacy": "olivedrab",
     "CFHT": "steelblue", "JPLUS": "teal", "PS1": "darkgoldenrod",
@@ -61,6 +59,9 @@ def _apply_xaxis(ax, wave) -> None:
         ax.set_xticks(ticks)
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(
         lambda x, _: f"{x:.0f}" if x < 1e4 else f"{x / 1e3:.0f}k"))
+    # Log-scale minor ticks would otherwise add auto "4x10^3"-style labels
+    # between the custom majors.
+    ax.xaxis.set_minor_formatter(mticker.NullFormatter())
     ax.set_xlabel(r"$\lambda_{\rm obs}$ ($\AA$)")
 
 

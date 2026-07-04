@@ -1,5 +1,5 @@
 # GALEX_NUV
-# vendored from sedpy 'galex_NUV' (astro-sedpy 0.4.1), 2026-07-03
+# vendored from sedpy 'galex_NUV' (astro-sedpy 0.4.1), 2026-07-04
 # columns: wavelength_Angstrom throughput
 1.690000e+03 0.000000e+00
 1.691000e+03 2.450000e-01

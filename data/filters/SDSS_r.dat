@@ -1,5 +1,5 @@
 # SDSS_r
-# vendored from sedpy 'sdss_r0' (astro-sedpy 0.4.1), 2026-07-03
+# vendored from sedpy 'sdss_r0' (astro-sedpy 0.4.1), 2026-07-04
 # columns: wavelength_Angstrom throughput
 5.230000e+03 0.000000e+00
 5.280000e+03 1.300000e-03

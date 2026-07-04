@@ -1,5 +1,5 @@
 # CFHT_z
-# vendored from sedpy 'cfht_megacam_zs_9801' (astro-sedpy 0.4.1), 2026-07-03
+# vendored from sedpy 'cfht_megacam_zs_9801' (astro-sedpy 0.4.1), 2026-07-04
 # columns: wavelength_Angstrom throughput
 6.495000e+03 0.000000e+00
 6.520000e+03 2.829460e-04

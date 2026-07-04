@@ -7,6 +7,10 @@ Template-Set Resolution
 Turns ``config.templates`` into the templates ``.param`` file a PhotoZ run
 consumes:
 
+  - an empty ``config.templates`` selects the packaged default, the
+    Brown et al. (2014) atlas of 129 galaxy spectra (CDS J/ApJS/212/18),
+    stored under ``data/templates/brown14`` with each file carrying its
+    original attribution header;
   - a path to an existing eazy ``.param`` file is used as-is (its internal
     spectrum paths must be absolute or eazy-resolvable);
   - a directory is globbed with ``config.template_pattern`` (falling back
@@ -31,7 +35,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .config import FitConfig
+from .config import DEFAULT_TEMPLATE_DIR, FitConfig
 
 
 def resolve_spectra(directory, *, pattern: str = "*_spec.dat") -> list[Path]:
@@ -67,8 +71,9 @@ def prepare_templates_param(config: FitConfig, run_dir) -> Path:
     Parameters
     ----------
     config : FitConfig
-        ``templates`` is an existing ``.param`` file or a spectrum
-        directory; ``template_pattern`` applies in directory mode.
+        ``templates`` is an existing ``.param`` file, a spectrum
+        directory, or empty for the packaged Brown et al. (2014) atlas;
+        ``template_pattern`` applies in directory mode.
     run_dir : Path
         Destination for a generated ``templates.param``.
 
@@ -77,7 +82,7 @@ def prepare_templates_param(config: FitConfig, run_dir) -> Path:
     param_path : Path
         Absolute path handed to eazy as TEMPLATES_FILE.
     """
-    spec = Path(config.templates).expanduser()
+    spec = Path(config.templates).expanduser() if config.templates else DEFAULT_TEMPLATE_DIR
     if spec.is_file() and spec.suffix == ".param":
         return spec.resolve()
     if spec.is_dir():
