@@ -1,3 +1,6 @@
+# Local working context (not for the public repo)
+CLAUDE.md
+
 # Run outputs (regenerable)
 eazy_output/
 *.zout.fits
