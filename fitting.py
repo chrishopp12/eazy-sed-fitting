@@ -48,7 +48,8 @@ from astropy.table import Table
 from .config import BASE_EAZY_PARAMS, DEFAULT_TEF_FILE, FitConfig, MISSING_FLUX
 from .data import band_metadata, object_ids, prepare_photometry
 from .filters import build_filter_res, write_translate
-from .results import FitResult, Z_PERCENTILES, extract_sed, save_outputs
+from .results import (FitResult, Z_PERCENTILES, extract_sed,
+                      percentiles_from_lnp, save_outputs)
 from .templates import prepare_templates_param
 
 DEFAULT_OUTPUT_ROOT = Path("eazy_output")
@@ -234,11 +235,12 @@ def run_fit(config: FitConfig, phot, run_dir=None, *,
     z_chi2 = zgrid[np.argmin(chi2_fit, axis=1)]
     _warn_grid_edges(ids, zgrid, z_ml, z_chi2)
 
-    try:
-        z_percentiles = np.atleast_2d(
-            photz.pz_percentiles(percentiles=list(Z_PERCENTILES), oversample=5))
-    except Exception as err:
-        print(f"WARNING: pz_percentiles failed ({err}); percentiles set to NaN")
+    # Percentiles come from our trapezoidal CDF of eazy's own ln P(z);
+    # PhotoZ.pz_percentiles is boundary-fragile (see percentiles_from_lnp).
+    if lnp is not None:
+        z_percentiles = percentiles_from_lnp(zgrid, lnp)
+    else:
+        print("WARNING: no lnp available; percentiles set to NaN")
         z_percentiles = np.full((photz.NOBJ, len(Z_PERCENTILES)), np.nan)
 
     seds = [extract_sed(photz, i) if z_ml[i] > 0 else None for i in range(photz.NOBJ)]

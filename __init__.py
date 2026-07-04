@@ -29,7 +29,8 @@ from .data import load_photometry, prepare_photometry
 from .filters import available_filters, make_spherex_tophat
 from .templates import prepare_templates_param
 from .fitting import run_fit, build_run_dir, build_eazy_params
-from .results import FitResult, extract_sed, load_run, summarize
+from .results import (FitResult, extract_sed, load_run, percentiles_from_lnp,
+                      summarize)
 from .plots import generate_plots, plot_sed, plot_zscan
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
     "FitResult",
     "extract_sed",
     "load_run",
+    "percentiles_from_lnp",
     "summarize",
     "generate_plots",
     "plot_sed",

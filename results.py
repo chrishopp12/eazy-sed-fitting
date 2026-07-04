@@ -85,6 +85,47 @@ class FitResult:
     photz: object = field(default=None, repr=False, compare=False)
 
 
+def percentiles_from_lnp(zgrid, lnp, percentiles=Z_PERCENTILES) -> np.ndarray:
+    """P(z) percentiles by direct trapezoidal CDF on the fit grid.
+
+    Replaces ``PhotoZ.pz_percentiles``, which resamples ln P(z) with an
+    Akima spline onto its own log-spaced zoom grid: when a zoom endpoint
+    lands one float ULP outside the fit grid (a Z_MIN-dependent accident
+    of ``log_zgrid``'s exp/log round trip), the spline returns NaN there,
+    a leading NaN poisons the cumulative integral, and every percentile
+    collapses to the grid start (eazy-py 0.8.6).
+
+    Parameters
+    ----------
+    zgrid : array
+        Fit redshift grid (NZ).
+    lnp : array
+        ln P(z), shape (NOBJ, NZ); non-finite entries are excluded.
+    percentiles : sequence
+        Percentiles in percent. [default: Z_PERCENTILES]
+
+    Returns
+    -------
+    zlimits : np.ndarray
+        Shape (NOBJ, len(percentiles)); NaN rows where P(z) is unusable.
+    """
+    lnp = np.atleast_2d(np.asarray(lnp, float))
+    zgrid = np.asarray(zgrid, float)
+    fractions = np.asarray(percentiles, float) / 100.0
+    zlimits = np.full((lnp.shape[0], len(fractions)), np.nan)
+    for i, row in enumerate(lnp):
+        good = np.isfinite(row)
+        if good.sum() < 3:
+            continue
+        z = zgrid[good]
+        pz = np.exp(row[good] - row[good].max())
+        cdf = np.concatenate([[0.0], np.cumsum(0.5 * (pz[1:] + pz[:-1]) * np.diff(z))])
+        if cdf[-1] <= 0:
+            continue
+        zlimits[i] = np.interp(fractions, cdf / cdf[-1], z)
+    return zlimits
+
+
 def extract_sed(photz, iobj: int, z: float | None = None) -> dict | None:
     """Best-fit SED pieces for one object via eazy's ``show_fit``.
 

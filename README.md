@@ -111,6 +111,12 @@ a run for plotting without re-fitting (and without eazy installed).
   `conda run -n prospector_c3k python vendor_filters.py` when adding bands.
 - **Priors** are off by default and minimally supported (`prior_file` +
   `prior_filter` = a catalog flux column name).
+- **Percentiles are computed by this package**, not by
+  `PhotoZ.pz_percentiles`: that routine resamples ln P(z) with an Akima
+  spline onto a log-spaced zoom grid, and when the zoom start lands one
+  float ULP outside the fit grid (a Z_MIN-dependent accident) the leading
+  NaN collapses every percentile to the grid start. `percentiles_from_lnp`
+  integrates eazy's own ln P(z) directly on the fit grid.
 - **macOS multiprocessing.** eazy parallelizes with multiprocessing, and
   macOS uses the spawn start method: any script that calls `run_fit` at
   import time hangs the worker pool. Keep the standard
