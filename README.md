@@ -128,4 +128,4 @@ a run for plotting without re-fitting (and without eazy installed).
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).
