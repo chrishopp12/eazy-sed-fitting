@@ -216,15 +216,26 @@ def plot_zscan(result: FitResult, iobj: int = 0, *,
     ax = axes[0]
     ax.plot(zgrid, dchi2, "-", color="k", lw=1.4, label="combo", zorder=10)
     if result.singles_chi2 is not None:
+        # Each single-template curve is referenced to its OWN minimum: a
+        # lone template's absolute chi2 sits far above the combo's (it
+        # cannot track hundreds of bands) and the curves are needle-sharp,
+        # so a shared floor would push everything off the axis. What this
+        # panel shows is each template's redshift preference; the label
+        # carries the best single's absolute chi2 penalty vs the combo.
         singles = np.asarray(result.singles_chi2[:, iobj, :], float)
         order = np.argsort(singles.min(axis=1))[:n_singles]
-        floor = np.nanmin(chi2)
+        gap = np.nanmin(singles[order]) - np.nanmin(chi2)
         for rank, t in enumerate(order):
+            finite = np.isfinite(singles[t])
+            if not finite.any():
+                continue
             best = rank == 0
-            ax.plot(zgrid, singles[t] - floor, "-",
+            name = result.template_names[t]
+            ax.plot(zgrid, singles[t] - singles[t][finite].min(), "-",
                     color="firebrick" if best else "0.75",
                     lw=1.2 if best else 0.7, zorder=5 if best else 4,
-                    label=(f"best single: {result.template_names[t]}" if best else None))
+                    label=(f"best single: {name} (min $\\chi^2$ +{gap:.0f} vs combo)"
+                           if best else None))
     ax.axhline(1, ls=":", color="0.6")
     ax.set_ylim(0, 30)
     ax.set_xlabel("redshift")
