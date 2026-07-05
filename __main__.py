@@ -9,15 +9,18 @@ Runs an official eazy-py fit from a photometry CSV, regenerates figures
 from a finished run directory, or lists the vendored filter set. Flags
 only override a loaded ``FitConfig``; the full scenario lives in the
 config JSON (``FitConfig.to_json``), which each run echoes into its run
-directory.
+directory. ``--quick`` swaps in the vectorized quick engine
+(``quick_fitting.py``): same inputs, same outputs, seconds instead of a
+long template-grid build, no eazy-py import.
 
 Requirements:
-  - numpy, astropy, matplotlib, eazy-py (fit only)
+  - numpy, astropy, matplotlib, eazy-py (official fit only)
 
 Usage:
-  python -m eazy_sed_fitting fit --phot-csv PHOT.csv [--config CFG.json]
-      [--output-dir DIR] [--name TAG] [--mode combo|single]
-      [--templates PATH] [--z-min F --z-max F --z-step F]
+  python -m eazy_sed_fitting fit --phot-csv PHOT.csv [--quick]
+      [--config CFG.json] [--output-dir DIR] [--name TAG]
+      [--mode combo|single] [--templates PATH]
+      [--z-min F --z-max F --z-step F]
       [--z-step-type linear|log] [--z-fixed F] [--sys-err F] [--no-tef]
       [--min-bands N] [--min-snr-broadband F] [--n-proc N] [--plots]
       [--z-ref F]
@@ -42,6 +45,7 @@ from .config import load_config
 from .fitting import run_fit
 from .filters import available_filters
 from .plots import generate_plots
+from .quick_fitting import run_quick_fit
 from .results import load_run, summarize
 
 # CLI destination -> FitConfig field for the plain value overrides.
@@ -82,6 +86,9 @@ def _add_fit_parser(subparsers) -> None:
     p = subparsers.add_parser("fit", help="run an official eazy-py fit")
     p.add_argument("--phot-csv", required=True,
                    help="SED-input CSV (band, flux_uJy, flux_err_uJy, wave_um, bandwidth_um)")
+    p.add_argument("--quick", action="store_true",
+                   help="use the vectorized quick engine: same inputs and outputs, "
+                        "no eazy-py grid build (see quick_fitting.py for fidelity notes)")
     p.add_argument("--config", default=None, help="FitConfig JSON to load before overrides")
     p.add_argument("--output-dir", "-o", default=None,
                    help="run directory [default: eazy_output/<name>]")
@@ -121,7 +128,8 @@ def _add_fit_parser(subparsers) -> None:
 
 def cmd_fit(args) -> None:
     config = _apply_overrides(load_config(args.config), args)
-    result = run_fit(config, args.phot_csv, run_dir=args.output_dir)
+    engine = run_quick_fit if args.quick else run_fit
+    result = engine(config, args.phot_csv, run_dir=args.output_dir)
     summarize(result).pprint(max_width=200)
     if args.plots:
         for path in generate_plots(result, z_ref=args.z_ref):

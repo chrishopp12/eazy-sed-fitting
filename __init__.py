@@ -8,7 +8,10 @@ Wraps the official eazy-py pipeline (Brammer, van Dokkum, & Coppi 2008;
 eazy-py 0.8.6) behind one config + one photometry CSV: the package
 generates the catalog, translate file, FILTER.RES, and template list into
 a self-contained run directory, executes the official fit, and writes
-summary/array products (see ``results.py``).
+summary/array products (see ``results.py``). ``run_quick_fit`` (or the
+CLI's ``--quick``) swaps in a vectorized reimplementation of the same
+likelihood that skips eazy-py's long template-grid build (see
+``quick_fitting.py``).
 
 Quick start (from the directory containing this package; templates
 default to the packaged Brown et al. 2014 atlas):
@@ -30,6 +33,7 @@ from .data import load_photometry, prepare_photometry
 from .filters import available_filters, make_spherex_tophat
 from .templates import prepare_templates_param
 from .fitting import run_fit, build_run_dir, build_eazy_params
+from .quick_fitting import run_quick_fit, zgrid_from_config
 from .results import (FitResult, extract_sed, load_run, percentiles_from_lnp,
                       summarize)
 from .plots import generate_plots, plot_sed, plot_zscan
@@ -43,6 +47,8 @@ __all__ = [
     "make_spherex_tophat",
     "prepare_templates_param",
     "run_fit",
+    "run_quick_fit",
+    "zgrid_from_config",
     "build_run_dir",
     "build_eazy_params",
     "FitResult",

@@ -72,6 +72,34 @@ carries its original attribution header). To use an alternative set, pass
 `templates=` an existing eazy `.param` file, or a directory of spectra
 (two-column ASCII wavelength/f_lambda) matched by `template_pattern`.
 
+## Quick engine (`--quick`)
+
+eazy-py's template grid — every template integrated through every filter at
+every grid redshift — takes tens of minutes to build for a many-channel
+catalog against a large atlas, and per-object SPHEREx tophats mean the grid
+cannot be reused between objects. `--quick` (or `run_quick_fit`, same
+signature as `run_fit`) swaps in a vectorized reimplementation of the same
+likelihood that builds the grid in seconds and never imports eazy-py:
+
+```bash
+python -m eazy_sed_fitting fit --phot-csv sed_input.csv --quick \
+    --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \
+    --name target1 --output-dir runs/target1 --plots
+```
+
+Inputs, run-directory products, `summary.csv`/`arrays.npz` schemas,
+`load_run`, and the figures are identical to the official path (the quick
+run directory just omits the eazy-only input files and adds `engine.info`).
+The eazy conventions it reproduces — the SYS_ERR floor, the rest-shifted
+and clipped TEF with its ln P(z) normalization term, NNLS with eazy's
+internal template renormalization, the 3-point parabola z_ml, single-mode
+analytic amplitudes, fixed-z evaluation — are itemized in
+`quick_fitting.py`'s docstring, along with its limits: no IGM absorption
+(don't use it at z ≳ 2 with blue bands; a warning fires), no priors,
+`nnls` only. Validated against the official engine on identical inputs:
+z_ml and the P(z) percentiles agree to ~1e-5, chi2(z) to a few parts in
+1e4, with identical active-template sets.
+
 ## Outputs (run directory)
 
 ```
@@ -104,6 +132,12 @@ a run for plotting without re-fitting (and without eazy installed).
   forward-modeling fitter (Prospector).
 - **SSP caveat.** eazy-py 0.8.6 discards the age column of a templates file,
   so SSP sets fit as plain template lists with no age-vs-universe cut.
+- **64-bit arrays are pinned** (`ARRAY_NBITS=64`). With eazy's float32
+  default, `fit_single_templates` underflows for atlas-scale template
+  fluxes: internal f_nu values ~1e-24 square to ~1e-48, which flushes to
+  zero in float32, so every single-template amplitude becomes 0/0 = NaN.
+  Combo fits are unaffected (`template_lsq` renormalizes each template
+  before squaring), which is why the bug only surfaces in `mode="single"`.
 - **Fixed-redshift fits** always go through `fit_at_zbest(zbest=...)`;
   `FIX_ZSPEC` stays off so a `z_spec` column can never silently hijack a
   photo-z run. The fixed redshift must lie strictly inside the grid.

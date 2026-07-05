@@ -64,6 +64,12 @@ BASE_EAZY_PARAMS = {
     "FIX_ZSPEC": "n",          # fixed-z fits use fit_at_zbest, never FIX_ZSPEC
     "APPLY_PRIOR": "n",        # flipped to "y" when config.prior is True
     "VERBOSITY": 1,
+    # eazy's float32 default underflows in fit_single_templates: template
+    # fluxes in internal f_nu units are ~1e-24 for atlas spectra, their
+    # squares (~1e-48) flush to zero in float32, and every single-template
+    # amplitude becomes 0/0 -> NaN. Combo fits are unaffected (template_lsq
+    # renormalizes before squaring). 64-bit arrays make mode="single" work.
+    "ARRAY_NBITS": 64,
 }
 
 
