@@ -12,3 +12,8 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Per-project working notes, local only. The glob also covers the
+# "CLAUDE 2.md" conflict copies a syncing filesystem leaves behind.
+CLAUDE*.md
+session_log*.md
