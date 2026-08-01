@@ -5,8 +5,9 @@ Template-fitting photometric redshifts and SEDs with the official
 & Coppi 2008), wrapped behind one config and one photometry CSV. The package
 generates every eazy input (catalog, translate file, FILTER.RES, template
 list) into a self-contained run directory, executes the official fit, and
-writes compact summary products. Filter curves and a default galaxy template
-atlas ship with the package, so a fit needs nothing beyond the CSV.
+writes compact summary products. Filter curves and several galaxy template
+atlases ship with the package, so a fit needs nothing beyond the CSV and the
+name of a template set.
 
 ## Environment
 
@@ -17,6 +18,14 @@ package (or put it on `PYTHONPATH`):
 
 ```
 conda run -n eazy python -m eazy_sed_fitting fit ...
+```
+
+`tests/` holds regressions for previously-fixed defects, not a suite for the
+engine (whose numerics are validated against the official eazy-py path).
+They need neither eazy-py nor network access:
+
+```
+conda run -n eazy python -m pytest tests/ -q
 ```
 
 ## Photometry input
@@ -42,6 +51,7 @@ is the real gate.
 
 ```bash
 python -m eazy_sed_fitting fit --phot-csv sed_input.csv \
+    --templates brown14_vac_cosmos160 --template-pattern '*.dat' \
     --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \
     --name target1 --output-dir runs/target1 --plots --z-ref 0.106
 ```
@@ -50,6 +60,7 @@ python -m eazy_sed_fitting fit --phot-csv sed_input.csv \
 from eazy_sed_fitting import FitConfig, run_fit, summarize
 
 cfg = FitConfig(name="target1",
+                templates="brown14_vac_cosmos160", template_pattern="*.dat",
                 z_min=0.05, z_max=0.16, z_step=0.001, z_step_type="linear",
                 z_fixed=0.106)
 result = run_fit(cfg, "sed_input.csv", run_dir="runs/target1")
@@ -65,12 +76,26 @@ the classic `TEMPLATE_ERROR.eazy_v1.0` curve at `tef_scale`=1.0),
 SPHEREx), `prior` (False). Serialize per-target configs with
 `cfg.to_json(path)` and load them with `--config`.
 
-Templates: the packaged default is the
-[Brown et al. (2014)](https://doi.org/10.1088/0067-0049/212/2/18) atlas of
-129 galaxy spectra, bundled under `data/templates/brown14/` (each file
-carries its original attribution header). To use an alternative set, pass
-`templates=` an existing eazy `.param` file, or a directory of spectra
-(two-column ASCII wavelength/f_lambda) matched by `template_pattern`.
+## Templates
+
+**`templates` is required — there is no default.** The template basis is
+the largest systematic a photometric redshift carries (moving a fitted
+redshift by more than any other configuration choice), so it may not arrive
+silently. The field takes an existing eazy `.param` file, a directory of
+spectra (two-column ASCII wavelength/f_lambda) matched by
+`template_pattern`, or the bare name of one of the sets packaged under
+`data/templates/` — a name carries no machine-specific path. Paths are
+tried first.
+
+| packaged set | contents |
+|---|---|
+| `brown14_vac_cosmos160` | the 129 Brown+14 spectra corrected from air to vacuum, plus the 31 COSMOS (Ilbert+09 / Polletta+07) templates — 160 in all |
+| `brown14_vac` | the same air-to-vacuum correction, without the COSMOS additions |
+| `brown14` | the [Brown et al. (2014)](https://doi.org/10.1088/0067-0049/212/2/18) atlas as distributed, on air wavelengths |
+
+Each Brown+14 file carries its original attribution header. `template_pattern`
+defaults to `*_spec.dat`, which matches the Brown spectra only: to pick up all
+160 spectra of `brown14_vac_cosmos160`, set `template_pattern="*.dat"`.
 
 ## Quick engine (`--quick`)
 
@@ -138,6 +163,14 @@ a run for plotting without re-fitting (and without eazy installed).
   zero in float32, so every single-template amplitude becomes 0/0 = NaN.
   Combo fits are unaffected (`template_lsq` renormalizes each template
   before squaring), which is why the bug only surfaces in `mode="single"`.
+- **A negative flux is a measurement.** eazy's `NOT_OBS_THRESHOLD` defaults
+  to −90, which in this package's catalog units is −90 µJy — inside the range
+  of real negative measurements, so a genuine faint-source non-detection (or
+  a background-oversubtracted channel) would be discarded as if it had never
+  been observed. The package pins `NOT_OBS_THRESHOLD` to −9e29 and marks
+  missing bands with −1e30 instead, so only rows the data policy actually
+  rejected are unobserved. Mark missing input rows with a non-finite flux or
+  a non-positive error, never with a magic negative number.
 - **Fixed-redshift fits** always go through `fit_at_zbest(zbest=...)`;
   `FIX_ZSPEC` stays off so a `z_spec` column can never silently hijack a
   photo-z run. The fixed redshift must lie strictly inside the grid.

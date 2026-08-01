@@ -17,9 +17,13 @@ with ``load_config(path)`` or ``--config path`` on the CLI.
 
 ``BASE_EAZY_PARAMS`` pins the eazy-py parameters this package relies on:
 catalog fluxes in microJansky (PRIOR_ABZP = 23.9), no Milky Way extinction
-correction, and FIX_ZSPEC off -- fixed-redshift fits go through
+correction, FIX_ZSPEC off -- fixed-redshift fits go through
 ``fit_at_zbest(zbest=...)`` instead, so a z_spec column can never silently
-hijack the fit.
+hijack the fit -- and a NOT_OBS_THRESHOLD far below any physical flux, so
+only the ``MISSING_FLUX`` sentinel counts as unobserved.
+
+``templates`` has no default: the template basis is the largest
+systematic a photometric redshift carries, so every config names its own.
 
 Notes:
   - eazy-py 0.8.6 silently ignores N_MIN_COLORS (its hard floor is a
@@ -43,13 +47,16 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 PACKAGE_DATA_DIR = PACKAGE_DIR / "data"
 FILTER_DATA_DIR = PACKAGE_DATA_DIR / "filters"
 DEFAULT_TEF_FILE = PACKAGE_DATA_DIR / "TEMPLATE_ERROR.eazy_v1.0"
-DEFAULT_TEMPLATE_DIR = PACKAGE_DATA_DIR / "templates" / "brown14"
+PACKAGED_TEMPLATE_DIR = PACKAGE_DATA_DIR / "templates"
 
 SPHEREX_PREFIX = "SPHEREx_"
 
-# Catalog value marking a band as not observed (below eazy's
-# NOT_OBS_THRESHOLD default of -90).
-MISSING_FLUX = -99.0
+# Catalog value marking a band as not observed, and the threshold it is
+# tested against. Both sit far under any physical flux: eazy's own
+# default threshold of -90 (catalog units, so microJansky here) lies
+# inside the range of real negative measurements and would discard them.
+MISSING_FLUX = -1.0e30
+NOT_OBS_THRESHOLD = -9.0e29
 
 # ------------------------------------
 # Invariant eazy-py parameter overrides
@@ -70,6 +77,7 @@ BASE_EAZY_PARAMS = {
     # amplitude becomes 0/0 -> NaN. Combo fits are unaffected (template_lsq
     # renormalizes before squaring). 64-bit arrays make mode="single" work.
     "ARRAY_NBITS": 64,
+    "NOT_OBS_THRESHOLD": NOT_OBS_THRESHOLD,
 }
 
 
@@ -107,11 +115,13 @@ class FitConfig:
     z_step_type : str
         "log" (eazy default) or "linear". [default: "log"]
     templates : str
-        Path to an eazy templates ``.param`` file (used as-is; its
-        internal paths must be absolute or eazy-resolvable), or to a
-        directory of spectra gathered with ``template_pattern``. Empty
-        selects the packaged Brown et al. (2014) atlas
-        (``data/templates/brown14``). [default: ""]
+        Required. Path to an eazy templates ``.param`` file (used as-is;
+        its internal paths must be absolute or eazy-resolvable), to a
+        directory of spectra gathered with ``template_pattern``, or the
+        bare name of a set packaged under ``data/templates`` (see
+        ``templates.packaged_template_sets``). Paths are tried first.
+        There is no default: the template basis is the largest systematic
+        a fit carries, so it may not arrive silently.
     template_pattern : str
         Glob for directory-mode template spectra. [default: "*_spec.dat"]
     sys_err : float
@@ -205,6 +215,10 @@ class FitConfig:
 
     def validate(self) -> None:
         """Raise ``ValueError`` on an inconsistent configuration."""
+        # Imported here, not at module scope: templates.py imports FitConfig.
+        from .templates import require_templates
+
+        require_templates(self.templates)
         if self.mode not in ("combo", "single"):
             raise ValueError(f"mode must be 'combo' or 'single', got {self.mode!r}")
         if self.z_step_type not in ("linear", "log"):

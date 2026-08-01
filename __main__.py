@@ -19,7 +19,7 @@ Requirements:
 Usage:
   python -m eazy_sed_fitting fit --phot-csv PHOT.csv [--quick]
       [--config CFG.json] [--output-dir DIR] [--name TAG]
-      [--mode combo|single] [--templates PATH]
+      [--mode combo|single] [--templates PATH_OR_SET]
       [--z-min F --z-max F --z-step F]
       [--z-step-type linear|log] [--z-fixed F] [--sys-err F] [--no-tef]
       [--min-bands N] [--min-snr-broadband F] [--n-proc N] [--plots]
@@ -28,8 +28,11 @@ Usage:
   python -m eazy_sed_fitting filters
 
 Examples:
-  Photo-z for one target with the packaged Brown+2014 atlas on a linear grid:
+  Photo-z for one target on a linear grid. The template set is required,
+  here the packaged vacuum-corrected Brown+2014 atlas with the COSMOS
+  additions (its 160 spectra need the wider ``--template-pattern``):
     python -m eazy_sed_fitting fit --phot-csv sed_input.csv \\
+        --templates brown14_vac_cosmos160 --template-pattern '*.dat' \\
         --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \\
         --name target1 --output-dir runs/target1 --plots
   Re-draw the figures of a finished run with a reference redshift:
@@ -41,12 +44,18 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 
+import matplotlib
+
 from .config import load_config
 from .fitting import run_fit
 from .filters import available_filters
 from .plots import generate_plots
 from .quick_fitting import run_quick_fit
 from .results import load_run, summarize
+
+# The CLI writes figures to files and never opens a window. Library
+# callers keep whatever backend they have already chosen.
+matplotlib.use("Agg")
 
 # CLI destination -> FitConfig field for the plain value overrides.
 _OVERRIDE_FIELDS = {
@@ -103,8 +112,9 @@ def _add_fit_parser(subparsers) -> None:
                    help="grid step; fractional when --z-step-type log")
     p.add_argument("--z-step-type", choices=("linear", "log"), default=None)
     p.add_argument("--templates", default=None,
-                   help="eazy templates .param file or a directory of spectra "
-                        "[default: packaged Brown+2014 atlas]")
+                   help="eazy templates .param file, a directory of spectra, or "
+                        "the name of a packaged set; required (no default) "
+                        "unless --config supplies it")
     p.add_argument("--template-pattern", default=None,
                    help="glob for directory-mode spectra [default: *_spec.dat]")
     p.add_argument("--sys-err", type=float, default=None,

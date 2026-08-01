@@ -13,15 +13,18 @@ CLI's ``--quick``) swaps in a vectorized reimplementation of the same
 likelihood that skips eazy-py's long template-grid build (see
 ``quick_fitting.py``).
 
-Quick start (from the directory containing this package; templates
-default to the packaged Brown et al. 2014 atlas):
+Quick start (from the directory containing this package). Every fit
+names its template set: a path, or one of the sets packaged under
+``data/templates`` -- there is no default.
 
     python -m eazy_sed_fitting fit --phot-csv sed_input.csv \\
+        --templates brown14_vac_cosmos160 \\
         --z-min 0.05 --z-max 0.16 --z-step 0.001 --z-step-type linear \\
         --output-dir runs/target
 
     from eazy_sed_fitting import FitConfig, run_fit
-    cfg = FitConfig(name="target")
+    cfg = FitConfig(name="target", templates="brown14_vac_cosmos160",
+                    template_pattern="*.dat")
     result = run_fit(cfg, "sed_input.csv", run_dir="runs/target")
 
 Requirements:

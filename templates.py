@@ -7,15 +7,19 @@ Template-Set Resolution
 Turns ``config.templates`` into the templates ``.param`` file a PhotoZ run
 consumes:
 
-  - an empty ``config.templates`` selects the packaged default, the
-    Brown et al. (2014) atlas of 129 galaxy spectra (CDS J/ApJS/212/18),
-    stored under ``data/templates/brown14`` with each file carrying its
-    original attribution header;
   - a path to an existing eazy ``.param`` file is used as-is (its internal
     spectrum paths must be absolute or eazy-resolvable);
   - a directory is globbed with ``config.template_pattern`` (falling back
     to ``*.dat``) and a ``.param`` file listing the spectra by absolute
-    path is written into the run directory.
+    path is written into the run directory;
+  - a bare name that is not a path resolves against the sets packaged
+    under ``data/templates`` (``packaged_template_sets``), so a config
+    carries no machine-specific path. Paths are tried first.
+
+There is no default set. An empty ``config.templates`` is a hard error:
+the basis is the largest systematic a fit carries, and the packaged sets
+differ enough (air versus vacuum wavelengths, with or without the COSMOS
+additions) to move a redshift on their own.
 
 Spectra must be readable by ``eazy.templates.Template``: two-column ASCII
 (wavelength Angstrom, f_lambda; ``#`` comments allowed -- the Brown et al.
@@ -35,7 +39,46 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .config import DEFAULT_TEMPLATE_DIR, FitConfig
+from .config import PACKAGED_TEMPLATE_DIR, FitConfig
+
+
+def packaged_template_sets() -> list[str]:
+    """Names of the template sets shipped with the package, sorted."""
+    if not PACKAGED_TEMPLATE_DIR.is_dir():
+        return []
+    return sorted(p.name for p in PACKAGED_TEMPLATE_DIR.iterdir() if p.is_dir())
+
+
+def require_templates(templates) -> str:
+    """The ``templates`` field, or a ``ValueError`` if it is empty.
+
+    ``Path("")`` is the current directory, so an unset field would
+    otherwise resolve to a silent, arbitrary template set.
+    """
+    spec = str(templates).strip()
+    if not spec:
+        raise ValueError(
+            "templates is required: name a template directory, an eazy "
+            f".param file, or one of the packaged sets {packaged_template_sets()}")
+    return spec
+
+
+def resolve_template_source(templates) -> Path:
+    """The directory or ``.param`` file ``config.templates`` names.
+
+    A filesystem path is tried first; a bare name that is not a path
+    resolves against the packaged sets.
+    """
+    templates = require_templates(templates)
+    spec = Path(templates).expanduser()
+    if spec.exists():
+        return spec
+    packaged = PACKAGED_TEMPLATE_DIR / str(templates)
+    if packaged.is_dir():
+        return packaged
+    raise ValueError(
+        f"templates={str(templates)!r} is not a directory, a .param file, "
+        f"or a packaged set; packaged sets are {packaged_template_sets()}")
 
 
 def resolve_spectra(directory, *, pattern: str = "*_spec.dat") -> list[Path]:
@@ -72,8 +115,8 @@ def prepare_templates_param(config: FitConfig, run_dir) -> Path:
     ----------
     config : FitConfig
         ``templates`` is an existing ``.param`` file, a spectrum
-        directory, or empty for the packaged Brown et al. (2014) atlas;
-        ``template_pattern`` applies in directory mode.
+        directory, or the name of a packaged set; ``template_pattern``
+        applies in directory mode.
     run_dir : Path
         Destination for a generated ``templates.param``.
 
@@ -82,7 +125,7 @@ def prepare_templates_param(config: FitConfig, run_dir) -> Path:
     param_path : Path
         Absolute path handed to eazy as TEMPLATES_FILE.
     """
-    spec = Path(config.templates).expanduser() if config.templates else DEFAULT_TEMPLATE_DIR
+    spec = resolve_template_source(config.templates)
     if spec.is_file() and spec.suffix == ".param":
         return spec.resolve()
     if spec.is_dir():
