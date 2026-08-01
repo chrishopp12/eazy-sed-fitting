@@ -15,6 +15,10 @@ with ``results.load_run`` -- no eazy import needed here):
   - ``plot_zscan``: delta-chi2 versus redshift next to the normalized
     P(z); in single mode the chi2 panel overlays the per-template curves.
 
+The backend is never selected here: importing a library must not change
+a caller's plotting environment. The CLI pins Agg at its entry point,
+and ``fitting.run_fit`` pins it before the first eazy import.
+
 Requirements:
   - numpy, matplotlib
 """
@@ -24,8 +28,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
