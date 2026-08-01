@@ -514,7 +514,8 @@ def run_quick_fit(config: FitConfig, phot, run_dir=None) -> FitResult:
     cube = design_cube(zgrid, templates, channels)               # (NZ, NTEMP, NFILT)
 
     # Per-object photometry in catalog band order, eazy conventions:
-    # efnu carries the SYS_ERR floor on positive fluxes, missing stays -99.
+    # efnu carries the SYS_ERR floor on positive fluxes; missing rows keep
+    # the MISSING_FLUX sentinel in both flux and error.
     ids = object_ids(phot)
     nobj, nfilt, ntemp, nz = len(ids), len(bands), len(templates), len(zgrid)
     fnu = np.empty((nobj, nfilt))

@@ -8,7 +8,8 @@ Reads the SED-input photometry CSV and applies the wrapper-side data
 policy before anything reaches eazy-py:
 
   - non-finite fluxes and non-positive errors become missing values
-    (``MISSING_FLUX`` = -99, below eazy's NOT_OBS_THRESHOLD);
+    (``MISSING_FLUX``, far below the NOT_OBS_THRESHOLD this package pins;
+    a negative flux is a measurement, not a missing value);
   - an optional broadband S/N cut marks non-detections missing (SPHEREx
     channels are never cut);
   - a minimum-valid-band count is enforced with a hard error, because
@@ -37,7 +38,7 @@ from pathlib import Path
 import numpy as np
 from astropy.table import Table
 
-from .config import FitConfig, MISSING_FLUX, SPHEREX_PREFIX
+from .config import FitConfig, MISSING_FLUX, NOT_OBS_THRESHOLD, SPHEREX_PREFIX
 
 REQUIRED_COLUMNS = ("band", "flux_uJy", "flux_err_uJy")
 OPTIONAL_FLOAT_COLUMNS = ("wave_um", "bandwidth_um")
@@ -51,12 +52,15 @@ def is_spherex(band, prefix: str = SPHEREX_PREFIX) -> bool:
 def valid_rows(table: Table) -> np.ndarray:
     """Boolean mask of rows carrying a usable measurement.
 
-    A row is valid when its flux is finite and above eazy's missing-data
-    region and its error is positive -- the same criterion eazy applies.
+    A row is valid when its flux is finite and its error positive -- the
+    same criterion eazy applies, with the same NOT_OBS_THRESHOLD. A
+    measurement of any sign is a measurement: only the ``MISSING_FLUX``
+    sentinel falls below the threshold.
     """
     flux = np.asarray(table["flux_uJy"], float)
     err = np.asarray(table["flux_err_uJy"], float)
-    return np.isfinite(flux) & (flux > -90.0) & np.isfinite(err) & (err > 0)
+    return (np.isfinite(flux) & (flux > NOT_OBS_THRESHOLD)
+            & np.isfinite(err) & (err > 0))
 
 
 def object_ids(phot: Table) -> list[str]:
@@ -130,7 +134,8 @@ def apply_data_policy(phot: Table, *, config: FitConfig) -> Table:
     sx = np.array([is_spherex(b, config.spherex_prefix) for b in out["band"]])
 
     # Unusable measurements -> missing (eazy treats fnu < NOT_OBS_THRESHOLD
-    # or efnu <= 0 as not observed; -99/-99 makes that explicit and stable).
+    # or efnu <= 0 as not observed; the sentinel makes that explicit and
+    # stable). A negative flux is never unusable on its own.
     bad = ~np.isfinite(flux) | ~np.isfinite(err) | (err <= 0)
 
     # Broadband non-detections -> missing. With the TEF inflating SPHEREx
