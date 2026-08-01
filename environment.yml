@@ -12,6 +12,8 @@ dependencies:
   - scipy=1.17
   - astropy=8.0
   - matplotlib=3.11
+  # Test suite only (tests/); not imported at runtime.
+  - pytest
   - pip
   - pip:
       - eazy-py==0.8.6
