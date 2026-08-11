@@ -86,6 +86,11 @@ def resolve_spectra(directory, *, pattern: str = "*_spec.dat") -> list[Path]:
 
     Falls back to ``*.dat`` when ``pattern`` matches nothing, so a generic
     directory of two-column spectra works without configuration.
+
+    A pattern selecting only part of a set warns: the default
+    ``*_spec.dat`` takes 129 of the 160 spectra in
+    ``brown14_vac_cosmos160``, and the basis is a factor-2.2 systematic
+    in the fitted redshift.
     """
     directory = Path(directory).expanduser()
     spectra = sorted(directory.glob(pattern))
@@ -93,6 +98,11 @@ def resolve_spectra(directory, *, pattern: str = "*_spec.dat") -> list[Path]:
         spectra = sorted(directory.glob("*.dat"))
     if not spectra:
         raise ValueError(f"no template spectra matching {pattern!r} (or *.dat) in {directory}")
+    available = sorted(directory.glob("*.dat"))
+    if len(spectra) < len(available):
+        print(f"WARNING: {directory.name}: template_pattern {pattern!r} "
+              f"selects {len(spectra)} of {len(available)} spectra; set "
+              f'"template_pattern": "*.dat" to fit the whole set')
     return spectra
 
 

@@ -4,7 +4,7 @@ test_regression.py
 Regressions for Fixed Defects
 ---------------------------------------------------------
 
-Four checks, one per defect that has actually bitten this package. They
+Five checks, one per defect that has actually bitten this package. They
 are not a test suite for the engine (its numerics are validated against
 the official eazy-py path elsewhere); each pins behavior that was once
 wrong and must not silently return.
@@ -36,6 +36,7 @@ from eazy_sed_fitting.data import prepare_photometry, valid_rows  # noqa: E402
 from eazy_sed_fitting.templates import (  # noqa: E402
     packaged_template_sets,
     prepare_templates_param,
+    resolve_spectra,
     resolve_template_source,
 )
 
@@ -80,6 +81,26 @@ def test_packaged_vacuum_set_resolves_by_name(tmp_path) -> None:
     vac = resolve_template_source("brown14_vac") / "NGC_4552_spec.dat"
     assert air.is_file() and vac.is_file()
     assert air.read_bytes() != vac.read_bytes()
+
+
+def test_a_partial_template_selection_says_so(capsys) -> None:
+    """Fitting part of a set must not look like fitting the set.
+
+    The default ``*_spec.dat`` takes 129 of the 160 spectra in the
+    adopted set, and the basis is a factor-2.2 systematic in the fitted
+    redshift -- a silent partial selection is a silently different answer.
+    """
+    directory = resolve_template_source(ADOPTED_SET)
+
+    spectra = resolve_spectra(directory)
+    warning = capsys.readouterr().out
+    assert len(spectra) == 129
+    assert "129 of 160" in warning
+    assert '"*.dat"' in warning
+
+    spectra = resolve_spectra(directory, pattern="*.dat")
+    assert len(spectra) == 160
+    assert capsys.readouterr().out == ""
 
 
 def test_negative_detection_is_kept() -> None:
